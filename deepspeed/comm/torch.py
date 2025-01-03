@@ -246,13 +246,14 @@ class TorchBackend(Backend):
                                                                                  async_op=async_op)
         elif has_coalescing_manager():
             reqs = []
-            with get_coalescing_manager(group, input_tensors[0].device, reqs, async_op):
-                for output, input in zip(output_tensors, input_tensors):
-                    handle = torch.distributed.distributed_c10d.all_gather_into_tensor(output,
-                                                                                       input,
-                                                                                       group=group,
-                                                                                       async_op=True)
-                    reqs.append(handle)
+            # with get_coalescing_manager(group, input_tensors[0].device, reqs, async_op):
+            # NOTE -- coalesce + async_op = _IllegalWork
+            for output, input in zip(output_tensors, input_tensors):
+                handle = torch.distributed.distributed_c10d.all_gather_into_tensor(output,
+                                                                                    input,
+                                                                                    group=group,
+                                                                                    async_op=True)
+                reqs.append(handle)
             if async_op:
                 return reqs[-1]
             else:

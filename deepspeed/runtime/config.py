@@ -230,6 +230,10 @@ def get_dump_state(param_dict):
     return get_scalar_param(param_dict, DUMP_STATE, DUMP_STATE_DEFAULT)
 
 
+def get_skip_module_cast(param_dict):
+    return get_scalar_param(param_dict, SKIP_MODULE_CAST, SKIP_MODULE_CAST_DEFAULT)
+
+
 def get_gradient_clipping(param_dict):
     return get_scalar_param(param_dict, GRADIENT_CLIPPING, GRADIENT_CLIPPING_DEFAULT)
 
@@ -758,6 +762,7 @@ class DeepSpeedConfig(object):
         self.gradient_accumulation_steps = get_gradient_accumulation_steps(param_dict)
         self.steps_per_print = get_steps_per_print(param_dict)
         self.dump_state = get_dump_state(param_dict)
+        self.skip_module_cast = get_skip_module_cast(param_dict)
 
         self.disable_allgather = get_disable_allgather(param_dict)
         self.communication_data_type = get_communication_data_type(param_dict)

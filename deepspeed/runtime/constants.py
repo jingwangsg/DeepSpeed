@@ -342,6 +342,21 @@ DUMP_STATE = 'dump_state'
 DUMP_STATE_DEFAULT = False
 
 #########################################
+# Skip module cast during engine init
+#########################################
+# When True, DeepSpeedEngine will not call module.half()/module.bfloat16() on
+# the user model. The user is responsible for ensuring trainable parameters
+# already match the configured precision. Buffers (e.g. RoPE frequencies) may
+# remain in any dtype. By default, this feature is not enabled.
+# Users can configure in ds_config.json as below example:
+SKIP_MODULE_CAST_FORMAT = '''
+Skip module cast should be enabled as:
+"skip_module_cast": true
+'''
+SKIP_MODULE_CAST = 'skip_module_cast'
+SKIP_MODULE_CAST_DEFAULT = False
+
+#########################################
 # Vocabulary size
 #########################################
 # Vocabulary size.

@@ -1228,6 +1228,9 @@ class DeepSpeedEngine(Module):
     def dump_state(self):
         return self._config.dump_state
 
+    def skip_module_cast(self):
+        return self._config.skip_module_cast
+
     def gradient_clipping(self):
         return self._config.gradient_clipping
 
@@ -1453,16 +1456,40 @@ class DeepSpeedEngine(Module):
         is_zero_init_model = self.zero_optimization_partition_weights() and any(
             [hasattr(param, "ds_id") for param in self.module.parameters()])
 
+        skip_cast = self.skip_module_cast()
         if self.fp16_enabled():
             if is_zero_init_model:
                 self.__check_params(self.module, torch.half)
-            self.module.half()
+            if not skip_cast:
+                self.module.half()
         elif self.bfloat16_enabled():
             if is_zero_init_model:
                 self.__check_params(self.module, torch.bfloat16)
-            self.module.bfloat16()
+            if not skip_cast:
+                self.module.bfloat16()
         else:
             self.__check_params(self.module, torch.float)
+
+        # When the user opts out of the engine-level cast, surface a warning if any
+        # trainable floating-point parameter does not match the configured precision.
+        # Mismatched trainable params will break optimizer/ZeRO bucketing, which relies
+        # on a single dtype across the param group. Buffers are intentionally excluded.
+        if skip_cast and (self.fp16_enabled() or self.bfloat16_enabled()):
+            expected_dtype = torch.half if self.fp16_enabled() else torch.bfloat16
+            mismatched_count = 0
+            mismatched_sample = []
+            for name, p in self.module.named_parameters():
+                if not (p.requires_grad and p.is_floating_point()):
+                    continue
+                if p.dtype != expected_dtype:
+                    mismatched_count += 1
+                    if len(mismatched_sample) < 3:
+                        mismatched_sample.append((name, str(p.dtype)))
+            if mismatched_count > 0:
+                logger.warning(f"skip_module_cast=True but {mismatched_count} trainable floating-point "
+                               f"parameter(s) have dtype != {expected_dtype}. Examples: {mismatched_sample}. "
+                               f"DeepSpeed expects all trainable parameters to match the configured precision; "
+                               f"mismatched dtypes can break optimizer/ZeRO bucketing.")
 
         # zero.Init() handles device placement of model
         if not (self.dont_change_device or is_zero_init_model):
